@@ -13,6 +13,9 @@ This library provides facilities for managing memory within P-systems.
 #![feature(decl_macro)]
 #![feature(llvm_asm)]
 
+/// # Memory allocation facilities
+pub mod alloc;
+
 #[cfg(test)]
 mod tests 
 {
