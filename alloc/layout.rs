@@ -1,1 +1,5 @@
-// TODO: Define memory layout structure.
+pub struct Layout
+{
+   size: u32,
+   align: u32,
+}

@@ -9,6 +9,7 @@ This library provides facilities for managing memory within P-systems.
 #![warn(missing_docs)]
 #![allow(unused)]
 #![allow(dead_code)]
+#![feature(alloc_error_handler)]
 #![feature(asm)]
 #![feature(decl_macro)]
 #![feature(llvm_asm)]

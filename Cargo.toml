@@ -11,4 +11,8 @@ build = "build.rs"
 name = "pmem"
 path = "lib.rs"
 
+[features]
+default = ["allocator"]
+allocator = []
+
 [dependencies]
