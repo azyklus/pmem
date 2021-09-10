@@ -14,5 +14,7 @@ path = "lib.rs"
 [features]
 default = ["allocator"]
 allocator = []
+mem_read = []
+mem_write = []
 
 [dependencies]
