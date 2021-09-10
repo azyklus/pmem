@@ -15,7 +15,10 @@ This library provides facilities for managing memory within P-systems.
 #![feature(llvm_asm)]
 
 /// # Memory allocation facilities
-pub mod alloc;
+pub mod allocations;
+
+/// # Volatile memory access and manipulation
+pub mod volatile;
 
 #[cfg(test)]
 mod tests 
