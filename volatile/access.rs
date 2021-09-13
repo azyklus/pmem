@@ -1,7 +1,25 @@
-pub trait Read{}
-pub trait Write{}
+use core::result;
+use super::error;
 
-pub trait ReadWrite: Read + Write {}
+pub type Result<T> = result::Result<T, AccessError>;
+
+pub trait Read
+{
+   fn read<T>(&self) -> Result<T>
+   {
+      unimplemented!("please implement function")
+   }
+}
+
+pub trait Write
+{
+   fn write<T>(&mut self, src: *mut T) -> Result<()>
+   {
+      unimplemented!("please implement function")
+   }
+}
+
+pub trait ReadWrite: Read + Write{}
 
 pub struct ReadImpl;
 pub struct WriteImpl;
