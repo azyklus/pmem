@@ -12,6 +12,7 @@ This library provides facilities for managing memory within P-systems.
 #![feature(alloc_error_handler)]
 #![feature(asm)]
 #![feature(decl_macro)]
+#![feature(lang_items)]
 #![feature(llvm_asm)]
 
 /// # Memory allocation facilities

@@ -1,5 +1,6 @@
 use core::{
    ptr,
+   marker::PhantomData,
 };
 
 use alloc::boxed::Box;

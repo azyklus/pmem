@@ -1,9 +1,13 @@
-use core::{
-   fmt,
-};
+use core::fmt;
+
+pub trait Access{}
 
 /// # Error in reading from volatile memory
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ReadError;
+
+impl Access for ReadError{}
 
 impl fmt::Display for ReadError
 {
@@ -14,7 +18,11 @@ impl fmt::Display for ReadError
 }
 
 /// # Error in writing to volatile memory
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct WriteError;
+
+impl Access for WriteError{}
 
 impl fmt::Display for WriteError
 {

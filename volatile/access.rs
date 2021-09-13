@@ -1,7 +1,7 @@
 use core::result;
 use super::error;
 
-pub type Result<T> = result::Result<T, AccessError>;
+pub type Result<T> = result::Result<T, dyn error::Access>;
 
 pub trait Read
 {
@@ -27,4 +27,7 @@ pub struct ReadWriteImpl;
 
 impl Read for ReadImpl{}
 impl Write for WriteImpl{}
+
+impl Read for ReadWriteImpl{}
+impl Write for ReadWriteImpl{}
 impl ReadWrite for ReadWriteImpl{}
