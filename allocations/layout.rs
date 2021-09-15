@@ -110,6 +110,65 @@ impl Layout
    }
 
    // TODO: Finish `Layout` implementation.
+
+   /// Produces layout describing a record that could be used to
+   /// allocate backing structure for `T` (which could be a trait
+   /// or other unsized type like a slice).
+   #[cfg(feature="allocator")]
+   #[inline]
+   pub fn for_value<T: ?Sized>(&self, t: &T) -> Self
+   {
+      let (size, align) = (mem::size_of_val(t), mem::align_of_val(t));
+      debug_assert!(Layout::from_size_align(size, align).is_ok());
+      // SAFETY: see rationale in `new` for why this is using the unsafe variation
+      unsafe { Layout::from_size_align_unchecked(size, align) }
+   }
+
+   /// Produces layout describing a record that could be used to
+   /// allocate backing structure for `T` (which could be a trait
+   /// or other unsized type like a slice).
+   ///
+   /// # Safety
+   ///
+   /// This function is only safe to call if the following conditions hold:
+   ///
+   /// - If `T` is `Sized`, this function is always safe to call.
+   /// - If the unsized tail of `T` is:
+   ///     - a [slice], then the length of the slice tail must be an intialized
+   ///       integer, and the size of the *entire value*
+   ///       (dynamic tail length + statically sized prefix) must fit in `isize`.
+   ///     - a [trait object], then the vtable part of the pointer must point
+   ///       to a valid vtable for the type `T` acquired by an unsizing coersion,
+   ///       and the size of the *entire value*
+   ///       (dynamic tail length + statically sized prefix) must fit in `isize`.
+   ///     - an (unstable) [extern type], then this function is always safe to
+   ///       call, but may panic or otherwise return the wrong value, as the
+   ///       extern type's layout is not known. This is the same behavior as
+   ///       [`Layout::for_value`] on a reference to an extern type tail.
+   ///     - otherwise, it is conservatively not allowed to call this function.
+   ///
+   /// [trait object]: ../../book/ch17-02-trait-objects.html
+   /// [extern type]: ../../unstable-book/language-features/extern-types.html
+   pub fn for_value_raw<T: ?Sized>(&self, t: &T) -> Self
+   {
+      // SAFETY: we pass along the prerequisites of these functions to the caller
+      let (size, align) = unsafe { (mem::size_of_val_raw(t), mem::align_of_val_raw(t)) };
+      debug_assert!(Layout::from_size_align(size, align).is_ok());
+      // SAFETY: see rationale in `new` for why this is using the unsafe variant
+      unsafe { Layout::from_size_align_unchecked(size, align) }
+   }
+
+   /// Creates a `NonNull` that is dangling, but well-aligned for this Layout.
+   ///
+   /// Note that the pointer value may potentially represent a valid pointer,
+   /// which means this must not be used as a "not yet initialized"
+   /// sentinel value. Types that lazily allocate must track initialization by
+   /// some other means.
+   pub const fn dangling(&self) -> NonNull<u8>
+   {
+      // SAFETY: align is guaranteed to be non-zero.
+      unsafe { NonNull::new_unchecked(self.align() as *mut u8) }
+   }
 }
 
 /// # Layout Error

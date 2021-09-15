@@ -167,10 +167,12 @@ impl<R, T, A> Volatile<R, A>
    #[inline]
    pub fn read(&self) -> access::Result<T>
    {
+      // UNSAFE: unsafe as we do not know if the value is valid.
       let mut ret = unsafe{(&mut ptr::read_volatile(&*self.ref_) as *mut T)};
 
       return match ret.is_null() {
          true => Err(error::Access::Read),
+         // UNSAFE: dereferencing a raw pointer is unsafe by definition.
          false => Ok(unsafe {*ret}),
       };
    }
@@ -377,6 +379,8 @@ impl<R, T, A> Volatile<R, A>
       };
    }
 }
+
+// TODO: Add methods for handling slices and arrays.
 
 /// # Memory access rules
 pub mod access;
