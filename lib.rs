@@ -14,6 +14,14 @@ This library provides facilities for managing memory within P-systems.
 #![feature(decl_macro)]
 #![feature(lang_items)]
 #![feature(llvm_asm)]
+#![feature(slice_ptr_get)]
+#![feature(slice_ptr_len)]
+
+extern crate alloc;
+extern crate core;
+
+#[macro_use]
+extern crate lazy_static;
 
 /// # Memory allocation facilities
 pub mod allocations;

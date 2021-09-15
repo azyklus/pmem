@@ -1,6 +1,7 @@
 use core::{
    fmt,
-   mem::{self, NonZeroUsize}
+   mem,
+   num::NonZeroUsize,
 };
 
 #[inline]
@@ -9,8 +10,8 @@ pub const fn size_align<T>() -> (usize, usize)
    return (mem::size_of::<T>(), mem::align_of::<T>());
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg(feature="allocator")]
-#[lang="alloc_layout"]
 pub struct Layout
 {
    /// Size of the requested block measured in bytes.

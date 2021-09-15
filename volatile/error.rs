@@ -1,15 +1,16 @@
-use core::fmt;
+use alloc::boxed::Box;
+use core::fmt::{self, Debug};
 
-pub trait Access{}
+pub trait Access: Debug{}
 
 /// # Error in reading from volatile memory
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct ReadError;
+pub struct Read;
 
-impl Access for ReadError{}
+impl Access for Read{}
 
-impl fmt::Display for ReadError
+impl fmt::Display for Read
 {
    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
    {
@@ -17,17 +18,24 @@ impl fmt::Display for ReadError
    }
 }
 
+pub type ReadError = Box<Read>;
+
 /// # Error in writing to volatile memory
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct WriteError;
+pub struct Write;
 
-impl Access for WriteError{}
+impl Access for Write{}
 
-impl fmt::Display for WriteError
+impl fmt::Display for Write
 {
    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
    {
       f.write_str("a write error occurred")
    }
+}
+
+lazy_static! {
+   pub static ref READ: Box<Read> = Box::new(Read);
+   pub static ref WRITE: Box<Write> = Box::new(Write);
 }

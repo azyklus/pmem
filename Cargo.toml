@@ -18,3 +18,5 @@ mem_read = []
 mem_write = []
 
 [dependencies]
+lazy_static = {version="1.4.0",features=["spin_no_std"]}
+spin = "0.9.2"

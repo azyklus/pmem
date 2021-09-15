@@ -1,7 +1,9 @@
+use alloc::boxed::Box;
 use core::result;
+
 use super::error;
 
-pub type Result<T> = result::Result<T, dyn error::Access>;
+pub type Result<T> = result::Result<T, Box<dyn error::Access>>;
 
 pub trait Read
 {

@@ -1,18 +1,23 @@
 use core::{
    fmt,
-   ptr::NonNull
+   ptr::{
+      self,
+      NonNull
+   },
 };
+
+use self::layout::Layout;
 
 #[cfg(feature="allocator")]
 pub unsafe trait Allocator
 {
-   unsafe fn allocate(&self, layout: layout::Layout) -> Result<NonNull<[u8]>, AllocError>;
-   unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: layout::Layout);
+   fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>;
+   unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout);
    
    /// # Aligned memory allocation
    ///
    /// TODO: Document this function.
-   unsafe fn allocate_aligned(&self, layout: layout::Layout) -> Result<NonNull<[u8]>, AllocError>
+   fn allocate_aligned(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
    {
       todo!("Implement function!")
    }
@@ -20,7 +25,7 @@ pub unsafe trait Allocator
    /// # Aligned memory deallocation
    /// 
    /// TODO: Document function.
-   unsafe fn deallocate_aligned(&self, ptr: NonNull<u8>, layout: layout::Layout)
+   unsafe fn deallocate_aligned(&self, ptr: NonNull<u8>, layout: Layout)
    {
       todo!("Implement function!")
    }
@@ -43,12 +48,12 @@ pub unsafe trait Allocator
    /// the `panic!` or similar macro.
    ///
    /// [`handle_alloc_error`]: crate::alloc::handle_alloc_error
-   fn allocate_zeroed(&self) -> Result<NonNull<[u8]>, AllocError>
+   fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
    {
       let ptr = self.allocate(layout)?;
       unsafe {
          ptr.as_non_null_ptr().as_ptr().write_bytes(0, ptr.len())
-      }
+      };
 
       return Ok(ptr);
    }
@@ -91,8 +96,8 @@ pub unsafe trait Allocator
    /// [`handle_alloc_error`]: crate::alloc::handle_alloc_error
    unsafe fn grow(&self,
       ptr: NonNull<u8>,
-      old_layout: layout::Layout,
-      new_layout: layout::Layout,
+      old_layout: Layout,
+      new_layout: Layout,
    ) -> Result<NonNull<[u8]>, AllocError>
    {
       debug_assert!(
@@ -152,8 +157,8 @@ pub unsafe trait Allocator
    /// [`handle_alloc_error`]: crate::alloc::handle_alloc_error
    unsafe fn shrink(&self,
       ptr: NonNull<u8>,
-      old_layout: layout::Layout,
-      new_layout: layout::Layout,
+      old_layout: Layout,
+      new_layout: Layout,
    ) -> Result<NonNull<[u8]>, AllocError>
    {
       debug_assert!(
@@ -202,10 +207,9 @@ impl fmt::Display for AllocError
 }
 
 #[cfg(feature = "allocator")]
-#[alloc_error_handler]
-pub fn handle_alloc_error(layout: layout::Layout) -> !
+pub fn handle_alloc_error(layout: Layout) -> !
 {
-
+   loop{}
 }
 
 /// # Implements an ECS-style allocator
