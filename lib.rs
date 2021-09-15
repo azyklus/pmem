@@ -13,6 +13,7 @@ This library provides facilities for managing memory within P-systems.
 #![feature(asm)]
 #![feature(decl_macro)]
 #![feature(lang_items)]
+#![feature(layout_for_ptr)]
 #![feature(llvm_asm)]
 #![feature(slice_ptr_get)]
 #![feature(slice_ptr_len)]

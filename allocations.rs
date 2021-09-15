@@ -4,6 +4,7 @@ use core::{
       self,
       NonNull
    },
+   result,
 };
 
 use self::layout::Layout;
@@ -11,7 +12,7 @@ use self::layout::Layout;
 #[cfg(feature="allocator")]
 pub unsafe trait Allocator
 {
-   fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>;
+   fn allocate(&self, layout: Layout) -> AllocResult<NonNull<[u8]>>;
    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout);
 
    /// # Zero-initialized allocation
@@ -32,7 +33,7 @@ pub unsafe trait Allocator
    /// the `panic!` or similar macro.
    ///
    /// [`handle_alloc_error`]: crate::alloc::handle_alloc_error
-   fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
+   fn allocate_zeroed(&self, layout: Layout) -> AllocResult<NonNull<[u8]>>
    {
       let ptr = self.allocate(layout)?;
       unsafe {
@@ -82,7 +83,7 @@ pub unsafe trait Allocator
       ptr: NonNull<u8>,
       old_layout: Layout,
       new_layout: Layout,
-   ) -> Result<NonNull<[u8]>, AllocError>
+   ) -> AllocResult<NonNull<[u8]>>
    {
       debug_assert!(
          new_layout.size() >= old_layout.size(),
@@ -143,7 +144,7 @@ pub unsafe trait Allocator
       ptr: NonNull<u8>,
       old_layout: Layout,
       new_layout: Layout,
-   ) -> Result<NonNull<[u8]>, AllocError>
+   ) -> AllocResult<NonNull<[u8]>>
    {
       debug_assert!(
          new_layout.size() <= old_layout.size(),
@@ -173,6 +174,8 @@ pub unsafe trait Allocator
    }
 }
 
+pub type AllocResult<T> = result::Result<T, AllocError>;
+
 /// # Allocation error
 ///
 /// The `AllocError` indicates a failure in memory allocation.
@@ -195,13 +198,13 @@ unsafe impl<A> Allocator for &A
       A: Allocator + ?Sized,
 {
    #[inline]
-   fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
+   fn allocate(&self, layout: Layout) -> AllocResult<NonNull<[u8]>>
    {
       (**self).allocate(layout)
    }
 
    #[inline]
-   fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
+   fn allocate_zeroed(&self, layout: Layout) -> AllocResult<NonNull<[u8]>>
    {
       (**self).allocate_zeroed(layout)
    }
@@ -221,13 +224,13 @@ unsafe impl<A> Allocator for Locked<A>
       A: Allocator + Sized,
 {
    #[inline]
-   fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
+   fn allocate(&self, layout: Layout) -> AllocResult<NonNull<[u8]>>
    {
       self.lock().allocate(layout)
    }
 
    #[inline]
-   fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
+   fn allocate_zeroed(&self, layout: Layout) -> AllocResult<NonNull<[u8]>>
    {
       self.lock().allocate_zeroed(layout)
    }
@@ -248,6 +251,9 @@ pub fn handle_alloc_error(layout: Layout) -> !
 
 /// # Implements an ECS-style allocator
 pub mod ecs;
+
+/// # Global memory allocator implementation
+pub mod global;
 
 /// # Defines memory layout structure
 pub mod layout;

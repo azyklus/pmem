@@ -2,6 +2,7 @@ use core::{
    fmt,
    mem,
    num::NonZeroUsize,
+   ptr::NonNull,
 };
 
 #[inline]
@@ -88,12 +89,12 @@ impl Layout
    /// The minimum size in bytes for a memory block of this layout.
    #[cfg(feature="allocator")]
    #[inline]
-   pub fn size(&self) -> usize { self.size_ }
+   pub const fn size(&self) -> usize { self.size_ }
 
    /// The minimum byte alignment for a memory block of this layout.
    #[cfg(feature="allocator")]
    #[inline]
-   pub fn align(&self) -> usize { self.align_.get() }
+   pub const fn align(&self) -> usize { self.align_.get() }
 
    /// Constructs a `Layout` suitable for holding a value of type `T`.
    #[cfg(feature="allocator")]
