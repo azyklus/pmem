@@ -13,33 +13,17 @@ pub unsafe trait Allocator
 {
    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>;
    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout);
-   
-   /// # Aligned memory allocation
-   ///
-   /// TODO: Document this function.
-   fn allocate_aligned(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
-   {
-      todo!("Implement function!")
-   }
-
-   /// # Aligned memory deallocation
-   /// 
-   /// TODO: Document function.
-   unsafe fn deallocate_aligned(&self, ptr: NonNull<u8>, layout: Layout)
-   {
-      todo!("Implement function!")
-   }
 
    /// # Zero-initialized allocation
-   /// 
+   ///
    /// Behaves similarly to `allocate` but also makes sure that the allocated
    /// memory is zero-initialized.
    ///
    /// ## Errors
-   /// 
+   ///
    /// Returning `Err` indicates that either memory is exhausted or `layout` does
    /// not meet the allocator's size or alignment constraints.
-   /// 
+   ///
    /// Implementations are encouraged to return `Err` on memory exhaustion rather
    /// than panicking or aborting, but this is not a requirement.
    ///
@@ -61,7 +45,7 @@ pub unsafe trait Allocator
    /// # Expand memory block
    ///
    /// Attempts to expand the memory block.
-   /// 
+   ///
    /// Returns a new [`NonNull<[u8]>`][core::ptr::NonNull] containing a pointer and the actual
    /// size of the allocated memory. The pointer is suitable for holding data described by `new_layout`.
    /// To accomplish this, the allocator may extend the allocation referenced by `ptr` to fit the new layout.
@@ -203,6 +187,56 @@ impl fmt::Display for AllocError
    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
    {
       f.write_str("memory allocation failed")
+   }
+}
+
+unsafe impl<A> Allocator for &A
+   where
+      A: Allocator + ?Sized,
+{
+   #[inline]
+   fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
+   {
+      (**self).allocate(layout)
+   }
+
+   #[inline]
+   fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
+   {
+      (**self).allocate_zeroed(layout)
+   }
+
+   #[inline]
+   unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout)
+   {
+      // SAFETY: safety contract must be upheld by caller.
+      unsafe { (**self).deallocate(ptr, layout) }
+   }
+}
+
+use crate::sync::Locked;
+
+unsafe impl<A> Allocator for Locked<A>
+   where
+      A: Allocator + Sized,
+{
+   #[inline]
+   fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
+   {
+      self.lock().allocate(layout)
+   }
+
+   #[inline]
+   fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>
+   {
+      self.lock().allocate_zeroed(layout)
+   }
+
+   #[inline]
+   unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout)
+   {
+      // SAFETY: the safety contract must be upheld by the caller.
+      unsafe { self.lock().deallocate(ptr, layout) }
    }
 }
 

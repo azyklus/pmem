@@ -1,25 +1,12 @@
-use alloc::boxed::Box;
 use core::result;
 
 use super::error;
 
-pub type Result<T> = result::Result<T, Box<dyn error::Access>>;
+pub type Result<T> = result::Result<T, error::Access>;
 
-pub trait Read
-{
-   fn read<T>(&self) -> Result<T>
-   {
-      unimplemented!("please implement function")
-   }
-}
+pub trait Read{}
 
-pub trait Write
-{
-   fn write<T>(&mut self, src: *mut T) -> Result<()>
-   {
-      unimplemented!("please implement function")
-   }
-}
+pub trait Write{}
 
 pub trait ReadWrite: Read + Write{}
 

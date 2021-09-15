@@ -23,14 +23,19 @@ extern crate core;
 #[macro_use]
 extern crate lazy_static;
 
+pub extern crate spin;
+
 /// # Memory allocation facilities
 pub mod allocations;
+
+/// # Synchronization primitives
+pub mod sync;
 
 /// # Volatile memory access and manipulation
 pub mod volatile;
 
 #[cfg(test)]
-mod tests 
+mod tests
 {
    #[test]
    fn it_works()

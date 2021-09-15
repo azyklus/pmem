@@ -1,16 +1,11 @@
-use alloc::boxed::Box;
-
 use core::{
-   marker::PhantomData,
-   ops::{Deref,DerefMut},
-   ptr,
+  fmt,
+  ptr,
+  marker::PhantomData,
+  ops::{Deref,DerefMut},
 };
 
-use self::error::{ReadError,WriteError,Access};
-
-/// # Volatile memory access/manipulation
-///
-/// Wraps a reference and makes accesses of the referenced value volatile.
+/// Wraps a reference to make accesses to the referenced value volatile.
 ///
 /// Allows volatile reads and writes on the referenced value. The referenced value needs to
 /// be `Copy` for reading and writing, as volatile reads and writes take and return copies
@@ -26,14 +21,12 @@ use self::error::{ReadError,WriteError,Access};
 #[repr(transparent)]
 pub struct Volatile<R, A = access::ReadWriteImpl>
 {
-   ref_: R,
-   access_: PhantomData<A>,
+  ref_: R,
+  access: PhantomData<A>,
 }
 
 impl<R> Volatile<R, access::ReadWriteImpl>
 {
-   /// # Constructor (read and write access)
-   ///
    /// Constructs a new volatile instance wrapping the given reference.
    ///
    /// While it is possible to construct `Volatile` instances from arbitrary values (including
@@ -55,57 +48,55 @@ impl<R> Volatile<R, access::ReadWriteImpl>
    /// volatile.write(1);
    /// assert_eq!(volatile.read(), 1);
    /// ```
-   pub const fn new(ref_: R) -> Volatile<R>
+   #[inline]
+   pub const fn new(ref_: R) -> Volatile<R, access::ReadWriteImpl>
    {
       return Volatile{
          ref_,
-         access_: PhantomData,
+         access: PhantomData,
       };
    }
 
-   /// # Constructor (read-only access)
-   ///
    /// Constructs a new read-only volatile instance wrapping the given reference.
    ///
    /// This is equivalent to the `new` function with the difference that the returned
-   /// `Volatile` instance does not permit write operations. This is for example useful
-   /// with memory-mapped hardware registers that are defined as read-only by the hardware.
+   /// `Volatile` instance does not permit read operations. This is for example useful
+   /// with memory-mapped hardware registers that are defined as write-only by the hardware.
    ///
    /// ## Example
    ///
-   /// Reading is allowed:
+   /// Writing is allowed:
    ///
    /// ```rust
-   /// use volatile::Volatile;
-   ///
-   /// let value = 0u32;
-   ///
-   /// let volatile = Volatile::new_read_only(&value);
-   /// assert_eq!(volatile.read(), 0);
-   /// ```
-   ///
-   ///But writing is not:
-   ///
-   /// ```compile_fail
-   /// use volatile::Volatile;
+   /// use pmem::volatile::Volatile;
    ///
    /// let mut value = 0u32;
    ///
    /// let mut volatile = Volatile::new_read_only(&mut value);
-   /// volatile.write(1);
-   /// //ERROR: ^^^^^ the trait `volatile::access::Writable` is not implemented
-   /// //             for `volatile::access::ReadOnly`
+   /// volatile.read(1);
    /// ```
+   ///
+   /// But reading is not:
+   ///
+   /// ```compile_fail
+   /// use pmem::volatile::Volatile;
+   ///
+   /// let value = 0u32;
+   ///
+   /// let volatile = Volatile::new_write_only(&value);
+   /// volatile.write();
+   /// //ERROR: ^^^^ the trait `pmem::volatile::access::Write` is not implemented
+   /// //            for `pmem::volatile::access::ReadImpl`
+   /// ```
+   #[inline]
    pub const fn new_read_only(ref_: R) -> Volatile<R, access::ReadImpl>
    {
       return Volatile{
          ref_,
-         access_: PhantomData,
+         access: PhantomData,
       };
    }
 
-   /// # Constructor (write-only access)
-   ///
    /// Constructs a new write-only volatile instance wrapping the given reference.
    ///
    /// This is equivalent to the `new` function with the difference that the returned
@@ -117,7 +108,7 @@ impl<R> Volatile<R, access::ReadWriteImpl>
    /// Writing is allowed:
    ///
    /// ```rust
-   /// use volatile::Volatile;
+   /// use pmem::volatile::Volatile;
    ///
    /// let mut value = 0u32;
    ///
@@ -128,31 +119,31 @@ impl<R> Volatile<R, access::ReadWriteImpl>
    /// But reading is not:
    ///
    /// ```compile_fail
-   /// use volatile::Volatile;
+   /// use pmem::volatile::Volatile;
    ///
    /// let value = 0u32;
    ///
    /// let volatile = Volatile::new_write_only(&value);
    /// volatile.read();
-   /// //ERROR: ^^^^ the trait `volatile::access::Readable` is not implemented
-   /// //            for `volatile::access::WriteOnly`
+   /// //ERROR: ^^^^ the trait `pmem::volatile::access::Read` is not implemented
+   /// //            for `pmem::volatile::access::WriteImpl`
    /// ```
+   #[inline]
    pub const fn new_write_only(ref_: R) -> Volatile<R, access::WriteImpl>
    {
       return Volatile{
          ref_,
-         access_: PhantomData,
+         access: PhantomData,
       };
    }
 }
 
+/// Methods for references to `Copy` types.
 impl<R, T, A> Volatile<R, A>
    where
       R: Deref<Target = T>,
       T: Copy,
 {
-   /// # Read functionality
-   ///
    /// Performs a volatile read of the contained value.
    ///
    /// Returns a copy of the read value. Volatile reads are guaranteed not to be optimized
@@ -173,22 +164,17 @@ impl<R, T, A> Volatile<R, A>
    /// let mut_reference = Volatile::new(&mut value);
    /// assert_eq!(mut_reference.read(), 50);
    /// ```
-   fn read(&self) -> access::Result<*mut T>
-      where
-         A: access::Read,
+   #[inline]
+   pub fn read(&self) -> access::Result<T>
    {
-      // Get our return value.
-      let ret = unsafe { ptr::read_volatile(&*self.ref_) };
+      let mut ret = unsafe{(&mut ptr::read_volatile(&*self.ref_) as *mut T)};
 
-      // Check if our return value is null or not.
-      match ret.is_null() {
-         true => Err(error::READ),
-         false => Ok(*mut ret)
-      }
+      return match ret.is_null() {
+         true => Err(error::Access::Read),
+         false => Ok(unsafe {*ret}),
+      };
    }
 
-   /// # Write functionality
-   ///
    /// Performs a volatile write, setting the contained value to the given `value`.
    ///
    /// Volatile writes are guaranteed to not be optimized away by the compiler, but by
@@ -198,7 +184,7 @@ impl<R, T, A> Volatile<R, A>
    /// ## Example
    ///
    /// ```rust
-   /// use volatile::Volatile;
+   /// use pmem::volatile::Volatile;
    ///
    /// let mut value = 42;
    /// let mut volatile = Volatile::new(&mut value);
@@ -206,24 +192,22 @@ impl<R, T, A> Volatile<R, A>
    ///
    /// assert_eq!(volatile.read(), 50);
    /// ```
-   fn write(&mut self, src: *mut T) -> access::Result<()>
+   #[inline]
+   pub fn write(&mut self, mut value: T) -> access::Result<()>
       where
-         A: access::Write,
+         A: access::Read,
          R: DerefMut,
    {
-      match src.is_null() {
-         true => Err(error::WRITE),
+      return match (&mut value as *mut T).is_null() {
+         true => Err(error::Access::Write),
          false => {
-            // SAFETY: we know our value is not null and as such, this call is safe.
-            unsafe { ptr::write_volatile(&mut *self.ref_, *src) };
+            unsafe { ptr::write_volatile(&mut *self.ref_, value) };
 
             Ok(())
-         }
-      }
+         },
+      };
    }
 
-   /// # Read and update contained value
-   ///
    /// Updates the contained value using the given closure and volatile instructions.
    ///
    /// Performs a volatile read of the contained value, passes a mutable reference to it to the
@@ -231,7 +215,7 @@ impl<R, T, A> Volatile<R, A>
    /// the contained value.
    ///
    /// ```rust
-   /// use volatile::Volatile;
+   /// use pmem::volatile::Volatile;
    ///
    /// let mut value = 42;
    /// let mut volatile = Volatile::new(&mut value);
@@ -239,40 +223,166 @@ impl<R, T, A> Volatile<R, A>
    ///
    /// assert_eq!(volatile.read(), 43);
    /// ```
-   pub fn update<F>(&mut self, f: F) -> access::Result<()>
+   pub fn update<F>(&mut self, func: F) -> access::Result<()>
       where
          A: access::ReadWrite,
          R: DerefMut,
-         F: FnOnce(*mut T),
+         F: FnOnce(&mut T),
    {
-      let mut value = self.read().unwrap();
-      
-      f(value);
-      
-      if let Err(e) = self.write(value) {
-         return Err(e);
-      } else {
-         return Ok(());
-      }
+      let mut value = self.read()?;
+
+      func(&mut value);
+
+      self.write(value)
    }
 }
 
-/// # Traits for privalege specification
-///
-/// Here, we define and implement `Read`, `Write`, and `ReadWrite`.
+impl<R, A> Volatile<R, A>
+{
+   /// Extracts the inner value stored in the wrapper type.
+   ///
+   /// This method gives direct access to the wrapped reference and thus allows
+   /// non-volatile access again. This is seldom what you want since there is usually
+   /// a reason that a reference is wrapped in `Volatile`. However, in some cases it might
+   /// be required or useful to use the `read_volatile`/`write_volatile` pointer methods of
+   /// the standard library directly, which this method makes possible.
+   ///
+   /// Since no memory safety violation can occur when accessing the referenced value using
+   /// non-volatile operations, this method is safe. However, it _can_ lead to bugs at the
+   /// application level, so this method should be used with care.
+   ///
+   /// ## Example
+   ///
+   /// ```
+   /// use volatile::Volatile;
+   ///
+   /// let mut value = 42;
+   /// let mut volatile = Volatile::new(&mut value);
+   /// volatile.write(50);
+   /// let unwrapped: &mut i32 = volatile.extract_inner();
+   ///
+   /// assert_eq!(*unwrapped, 50); // non volatile access, be careful!
+   /// ```
+   pub fn inner(self) -> R
+   {
+      self.ref_
+   }
+}
+
+impl<R, T, A> Volatile<R, A>
+   where
+      R: Deref<Target = T>,
+      T: ?Sized,
+{
+   /// Constructs a new `Volatile` reference by mapping the wrapped value.
+   ///
+   /// This method is useful for accessing individual fields of volatile structs.
+   ///
+   /// Note that this method gives temporary access to the wrapped reference, which allows
+   /// accessing the value in a non-volatile way. This is normally not what you want, so
+   /// **this method should only be used for reference-to-reference transformations**.
+   ///
+   /// ## Examples
+   ///
+   /// Accessing a struct field:
+   ///
+   /// ```
+   /// use pmem::volatile::Volatile;
+   ///
+   /// struct Example { field_1: u32, field_2: u8, }
+   /// let mut value = Example { field_1: 15, field_2: 255 };
+   /// let mut volatile = Volatile::new(&mut value);
+   ///
+   /// // construct a volatile reference to a field
+   /// let field_2 = volatile.map(|example| &example.field_2);
+   /// assert_eq!(field_2.read(), 255);
+   /// ```
+   ///
+   /// Don't misuse this method to do a non-volatile read of the referenced value:
+   ///
+   /// ```
+   /// use pmem::volatile::Volatile;
+   ///
+   /// let mut value = 5;
+   /// let mut volatile = Volatile::new(&mut value);
+   ///
+   /// // DON'T DO THIS:
+   /// let mut readout = 0;
+   /// volatile.map(|value| {
+   ///    readout = *value; // non-volatile read, might lead to bugs
+   ///    value
+   /// });
+   /// ```
+   pub fn map<'a, F, U>(&'a self, func: F) -> Volatile<&'a U, A>
+      where
+         F: FnOnce(&'a T) -> &'a U,
+         U: ?Sized,
+         T: 'a,
+   {
+      return Volatile{
+         ref_: func(self.ref_.deref()),
+         access: self.access,
+      };
+   }
+
+   /// Constructs a new `Volatile` reference by mapping the wrapped value.
+   ///
+   /// This method is useful for accessing individual fields of volatile structs.
+   ///
+   /// Note that this method gives temporary access to the wrapped reference, which allows
+   /// accessing the value in a non-volatile way. This is normally not what you want, so
+   /// **this method should only be used for reference-to-reference transformations**.
+   ///
+   /// ## Examples
+   ///
+   /// Accessing a struct field:
+   ///
+   /// ```
+   /// use pmem::volatile::Volatile;
+   ///
+   /// struct Example { field_1: u32, field_2: u8, }
+   /// let mut value = Example { field_1: 15, field_2: 255 };
+   /// let mut volatile = Volatile::new(&mut value);
+   ///
+   /// // construct a volatile reference to a field
+   /// let field_2 = volatile.map(|example| &example.field_2);
+   /// assert_eq!(field_2.read(), 255);
+   /// ```
+   ///
+   /// Don't misuse this method to do a non-volatile read of the referenced value:
+   ///
+   /// ```
+   /// use pmem::volatile::Volatile;
+   ///
+   /// let mut value = 5;
+   /// let mut volatile = Volatile::new(&mut value);
+   ///
+   /// // DON'T DO THIS:
+   /// let mut readout = 0;
+   /// volatile.map(|value| {
+   ///    readout = *value; // non-volatile read, might lead to bugs
+   ///    value
+   /// });
+   /// ```
+   pub fn map_mut<'a, F, U>(&'a mut self, func: F) -> Volatile<&'a mut U, A>
+      where
+         F: FnOnce(&mut T) -> &mut U,
+         R: DerefMut,
+         U: ?Sized,
+         T: 'a,
+   {
+      return Volatile{
+         ref_: func(self.ref_.deref_mut()),
+         access: self.access,
+      };
+   }
+}
+
+/// # Memory access rules
 pub mod access;
 
-/// # Error handling
-pub mod error;
-
-/// # Reading from volatile memory
-/// 
-/// Implementing read functionality for volatile memory access.
-#[cfg(feature="mem_read")]
-pub mod read;
-
-/// # Writing to volatile memory
+/// # Error handling for volatiles
 ///
-/// Implementing write functionality for manipulating volatile memory.
-#[cfg(feature="mem_write")]
-pub mod write;
+/// In this module, we define functions to handle errors that we might encounter
+/// while attempting to access/manipulate volatile memory.
+pub mod error;
