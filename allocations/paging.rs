@@ -24,7 +24,8 @@ pub struct Page
 /// as the [`Page`] stores this flag.
 ///
 /// [`u8`]: https://doc.rust-lang.org/stable/std.primitive.u8.html
-/// [`Page`]: crate::alloc::paging::Page
+/// [`Page`]: crate::allocations::paging::Page
+#[cfg(feature="paging")]
 #[repr(u8)]
 pub enum PageFlags
 {
@@ -33,19 +34,23 @@ pub enum PageFlags
    Last  = 1 << 1,
 }
 
+#[cfg(feature="paging")]
 pub struct Entry
 {
    entry: i64,
 }
 
+#[cfg(feature="paging")]
 impl Entry
 {
+   #[cfg(feature="paging")]
    #[inline]
    pub fn is_valid(&self) -> bool
    {
       true
    }
 
+   #[cfg(feature="paging")]
    #[inline]
    pub fn entry(self) -> i64
    {
@@ -53,13 +58,16 @@ impl Entry
    }
 }
 
+#[cfg(feature="paging")]
 pub struct Table
 {
    entries: Vec<Entry>,
 }
 
+#[cfg(feature="paging")]
 impl Table
 {
+   #[cfg(feature="paging")]
    #[inline]
    pub fn len(&self) -> usize
    {

@@ -390,3 +390,11 @@ pub mod access;
 /// In this module, we define functions to handle errors that we might encounter
 /// while attempting to access/manipulate volatile memory.
 pub mod error;
+
+#[doc(hidden)]
+#[cfg(feature="mem_read")]
+pub mod read;
+
+#[doc(hidden)]
+#[cfg(feature="mem_write")]
+pub mod write;

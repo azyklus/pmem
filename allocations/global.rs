@@ -9,6 +9,7 @@ use super::{
 };
 
 /// # The Global memory allocator
+#[cfg(feature="allocator")]
 pub struct Global;
 
 unsafe impl Allocator for Global

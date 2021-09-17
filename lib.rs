@@ -24,12 +24,14 @@ extern crate core;
 #[macro_use]
 extern crate lazy_static;
 
+#[cfg(feature="sync")]
 pub extern crate spin;
 
 /// # Memory allocation facilities
 pub mod allocations;
 
 /// # Synchronization primitives
+#[cfg(feature="sync")]
 pub mod sync;
 
 /// # Volatile memory access and manipulation
