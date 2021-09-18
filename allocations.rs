@@ -9,6 +9,17 @@ use core::{
 
 use self::layout::Layout;
 
+extern "C" 
+{
+   static HEAP_SIZE: usize;
+   static HEAP_START: usize;
+
+   static MEMORY_END: usize;
+
+   static STACK_END: usize;
+   static START_START: usize;
+}
+
 #[cfg(feature="allocator")]
 pub unsafe trait Allocator
 {
