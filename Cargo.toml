@@ -22,3 +22,5 @@ sync = ["spin"]
 [dependencies]
 lazy_static = {version="1.4.0",features=["spin_no_std"]}
 spin = {version="0.9.2",optional=true}
+pcore = {git="https://github.com/mnimi/pcore",branch="trunk"}
+ptest = {git="https://github.com/mnimi/ptest",branch="trunk"}
