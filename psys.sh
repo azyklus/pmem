@@ -19,7 +19,7 @@ while true; do
   case "$1" in
     -b|--build)
       target="$2"
-      cargo build --target="./$target.json"
+      cargo build --target="config/$target.json"
       exit
       ;;
     -h|--help)
@@ -34,12 +34,12 @@ while true; do
           ;;
         "build")
           target="$4"
-          cargo build --target="./$target.json"
+          cargo build --target="config/$target.json"
           exit
           ;;
         "test")
           target="$4"
-          cargo test --target="./$target.json"
+          cargo test --target="config/$target.json"
           exit
           ;;
         --)
@@ -50,7 +50,7 @@ while true; do
       ;;
     -t|--test)
       target="$2"
-      cargo test --target="./$target.json"
+      cargo test --target="config/$target.json"
       exit
       ;;
     --)
