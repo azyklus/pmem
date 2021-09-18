@@ -377,6 +377,7 @@ pub enum EntryFlags
 
 /// Helper functions to convert the enum into a usize,
 /// which is what our table entries will be.
+#[cfg(feature="paging")]
 impl EntryFlags
 {
    /// Gets the flag as a [`usize`].
