@@ -18,8 +18,8 @@ eval set -- "$ARGS"
 while true; do
   case "$1" in
     -b|--build)
-      tg="$2"
-      cargo build --target="$tg\.json"
+      target="$2"
+      cargo build --target="./$target.json"
       exit
       ;;
     -h|--help)
@@ -50,7 +50,7 @@ while true; do
       ;;
     -t|--test)
       target="$2"
-      cargo test --target="./$target\.json"
+      cargo test --target="./$target.json"
       exit
       ;;
     --)
