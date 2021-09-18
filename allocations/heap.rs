@@ -2,6 +2,8 @@ use core::{
    ptr::{self, NonNull},
 };
 
+use pcore::math::PowersOfTwo;
+
 /// The alignment of the heap.
 pub const MIN_HEAP_ALIGN: usize = 4096;
 
