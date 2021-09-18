@@ -266,6 +266,9 @@ pub mod ecs;
 /// # Global memory allocator implementation
 pub mod global;
 
+/// # Heap allocator implementation
+pub mod heap;
+
 /// # Defines memory layout structure
 pub mod layout;
 
