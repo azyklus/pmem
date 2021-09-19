@@ -7,6 +7,7 @@ use core::{
    result,
 };
 
+use self::ecs::AllocResult;
 use self::layout::Layout;
 
 extern "C"
@@ -43,7 +44,7 @@ pub unsafe trait Allocator
    /// to call the [`handle_alloc_error`] function rather than directly invoking
    /// the `panic!` or similar macro.
    ///
-   /// [`handle_alloc_error`]: crate::alloc::handle_alloc_error
+   /// [`handle_alloc_error`]: crate::allocations::handle_alloc_error
    fn allocate_zeroed(&self, layout: Layout) -> AllocResult<NonNull<[u8]>>
    {
       let ptr = self.allocate(layout)?;
@@ -89,7 +90,7 @@ pub unsafe trait Allocator
    /// Clients wishing to abort computation in response to an allocation failure should call the [`handle_alloc_error`]
    /// function rather than directly invoke `panic!` or similar macro.
    ///
-   /// [`handle_alloc_error`]: crate::alloc::handle_alloc_error
+   /// [`handle_alloc_error`]: crate::allocations::handle_alloc_error
    unsafe fn grow(&self,
       ptr: NonNull<u8>,
       old_layout: Layout,
@@ -150,7 +151,7 @@ pub unsafe trait Allocator
    /// Clients wishing to abort computation in response to an allocation failure should call the [`handle_alloc_error`]
    /// function rather than directly invoke `panic!` or similar macro.
    ///
-   /// [`handle_alloc_error`]: crate::alloc::handle_alloc_error
+   /// [`handle_alloc_error`]: crate::allocations::handle_alloc_error
    unsafe fn shrink(&self,
       ptr: NonNull<u8>,
       old_layout: Layout,
@@ -182,25 +183,6 @@ pub unsafe trait Allocator
       Self: Sized,
    {
       self
-   }
-}
-
-pub type AllocResult<T> = result::Result<T, AllocError>;
-
-/// # Allocation error
-///
-/// The `AllocError` indicates a failure in memory allocation.
-/// This failure may be due to the exhaustion of memory or something
-/// wrong when combining given input arguments with this allocator.
-#[cfg(feature = "allocator")]
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub struct AllocError;
-
-impl fmt::Display for AllocError
-{
-   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-   {
-      f.write_str("memory allocation failed")
    }
 }
 

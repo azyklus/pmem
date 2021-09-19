@@ -5,6 +5,8 @@ use core::{
 
 use crate::{
    allocations::{
+      Allocator,
+      ecs::{AllocResult,AllocError},
       layout::Layout,
    },
    spin::Mutex,
@@ -27,20 +29,20 @@ pub const MIN_HEAP_ALIGN: usize = 4096;
 pub struct FreeBlock
 {
    /// The next available free block or `None` if it is the final block.
-   next: Option<FreeBlock>,
+   next: *mut FreeBlock,
 }
 
 impl FreeBlock
 {
    /// Construct a `FreeBlock` header pointing at `next`.
-   pub fn new(next: Option<FreeBlock>) -> FreeBlock
+   pub fn new(next: *mut FreeBlock) -> FreeBlock
    {
       return FreeBlock{next};
    }
 
    /// Return the next available free block.
    #[inline]
-   pub fn next(&self) -> Option<FreeBlock>
+   pub fn next(&self) -> *mut FreeBlock
    {
       return self.next;
    }
@@ -71,7 +73,7 @@ pub struct Heap<'a>
    /// we may allocate, and the array at the end can only contain a
    /// single free block size of the entire heap, and only when no
    /// memory is allocated.
-   free_lists: &'a mut [Option<FreeBlock>],
+   free_lists: &'a mut [*mut FreeBlock],
 
    /// Our minimum block size.
    ///
@@ -97,7 +99,7 @@ impl<'a> Heap<'a>
 {
    pub unsafe fn new(heap_base:  NonNull<u8>,
                      heap_size:  usize,
-                     free_lists: &mut [Option<FreeBlock>],
+                     free_lists: &mut [*mut FreeBlock],
    ) -> Heap
    {
       assert!(heap_base > 0);
@@ -209,9 +211,9 @@ impl<'a> Heap<'a>
    /// Pop a block off the appropriate free array.
    unsafe fn free_list_pop(&mut self, order: usize) -> Option<u8>
    {
-      let candidate: Option<FreeBlock> = self.free_lists[order];
-      if candidate != None {
-         self.free_lists[order] = candidate.next();
+      let candidate: *mut FreeBlock = self.free_lists[order];
+      if candidate != ptr::null_mut() {
+         self.free_lists[order] = (*candidate).next();
          return Some(candidate as u8);
       } else {
          return None;
@@ -223,10 +225,131 @@ impl<'a> Heap<'a>
    {
       let free_block: *mut FreeBlock = block as *mut FreeBlock;
       *free_block = FreeBlock::new(self.free_lists[order]);
-      self.free_lists[order] = Some(*free_block);
+      self.free_lists[order] = free_block;
    }
 
    // TODO: Finish Heap implementation.
+
+   /// Attempt to remove a block from our free array, returning true
+   /// success, and false if the block wasn't on our free array.  This is
+   /// the slowest part of a primitive buddy allocator, because it runs in
+   /// O(log N) time where N is the number of blocks of a given size.
+   ///
+   /// We could perhaps improve this by keeping our free lists sorted,
+   /// because then "nursery generation" allocations would probably tend
+   /// to occur at lower addresses and then be faster to find / rule out
+   /// finding.
+   unsafe fn free_list_remove(&mut self, order: usize, block: NonNull<u8>) -> bool
+   {
+      let block_pointer: *mut FreeBlock = block as *mut FreeBlock;
+
+      // Yuck, array traversals are gross without recursion.
+      //
+      // Here, `*checking` is the pointer we want to check,
+      // and `checking` is the memory location we found it at,
+      // which we'll need if we want to replace the value
+      // `*checking` with a new value.
+      let mut checking: *mut *mut FreeBlock = &mut self.free_lists[order];
+
+      // Loop until we run out of free blocks.
+      while *checking != ptr::null_mut() {
+         // Is this the block we need to remove?
+         if *checking == block_pointer {
+            // This is the block we must remove.
+            // Overwrite the value we used to get here with
+            // the next block in the sequence.
+            *checking = (*(*checking)).next();
+            return true;
+         }
+
+         // Haven't found it yet, so point `checking` at the address
+         // containing our `next` field.  (Once again, this is so we'll
+         // be able to reach back and overwrite it later if necessary.)
+         checking = &mut ((*(*checking)).next());
+      }
+
+      return false;
+   }
+
+   unsafe fn split_free_block(&mut self, block: NonNull<u8>, mut order: usize, order_needed: usize)
+   {
+      // Get the size of our starting block.
+      let mut size_to_split: usize = self.order_size(order);
+
+      // Progressively cut our block down to size.
+      while order > order_needed {
+         // Update our loop counters to describe a block half the size.
+         size_to_split >>= 1;
+         order -= 1;
+
+         // Insert the "upper half" of the block into the free array.
+         let split: usize = block.offset(size_to_split as isize);
+         self.free_list_insert(order, split);
+      }
+   }
+
+   /// Allocate a block of memory.
+   ///
+   /// Must be large enough to contain `size` bytes and aligned to `align`.
+   /// This will return `Err` if the `align` is greater than the `MIN_HEAP_ALIGN`,
+   /// if `align` is not a power-of-two, or if we cannot find enough memory
+   /// to allocate.
+   ///
+   /// All allocated memory must be passed to `deallocate` with the same [`Layout`]
+   /// or else terrible things will happen.
+   pub unsafe fn allocate(&mut self, layout: Layout) -> AllocResult<NonNull<[u8]>>
+   {
+      let mut align: usize = layout.align();
+      let mut size: usize = layout.size();
+
+      // Figure out which order block we will need.
+      if let Some(order_needed) = self.allocation_order(size, align) {
+         // Start with the smallest acceptable block size and search upward
+         // until we reach blocks the size of the entire heap.
+         for order in order_needed..self.free_lists.len() {
+            // Do we have a block this size?
+            if let Some(block) = self.free_list_pop(order) {
+               // If the block is too big, break it up.
+               // This leaves the address unchanged because we always
+               // allocate at the head of a block.
+               if order > order_needed {
+                  self.split_free_block(block, order, order_needed);
+               }
+
+               let nonnull: NonNull<[u8]> = NonNull::new(block).unwrap();
+
+               // We have an allocation
+               return Ok(nonnull);
+            }
+         }
+
+         // We could not find a large enough block for this allocation.
+         return Err(AllocError);
+      } else {
+         // We cannot allocate a block with the specified size and alignment.
+         return Err(AllocError);
+      }
+   }
+
+   /// Given a `block` with the specified `order`, find the "buddy" block.
+   ///
+   /// The "buddy" is the other half of the block that we initially split
+   /// from and also the block that we could potentially merge with.
+   pub unsafe fn buddy(&self, order: usize, block: NonNull<u8>) -> Option<NonNull<u8>>
+   {
+      let relative: usize = (block as usize) - (self.heap_base as usize);
+      let size: usize = self.order_size(order);
+
+      if size >= self.heap_size {
+         return None;
+      } else {
+         // Fun fact: we can find our buddy by xoring the right bit in our
+         // offset from the base of the heap.
+         return Some(self.heap_base.offset((relative ^ size) as isize));
+      }
+   }
+
+
 }
 
 /// Initializes the heap.
