@@ -9,7 +9,7 @@ build = "build.rs"
 
 [lib]
 name = "pmem"
-path = "lib.rs"
+path = "src/lib.rs"
 
 [features]
 default = ["allocator","sync"]
