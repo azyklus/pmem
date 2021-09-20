@@ -38,6 +38,9 @@ pub mod allocations;
 #[cfg(feature="sync")]
 pub mod sync;
 
+/// # Special unique pointer type
+pub mod unique;
+
 /// # Volatile memory access and manipulation
 pub mod volatile;
 
