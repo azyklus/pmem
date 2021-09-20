@@ -14,6 +14,13 @@ use crate::{
    spin::Mutex,
 };
 
+
+
+
+
+
+
+
 use pcore::math::PowersOfTwo;
 
 /// Either our global system heap or `None` if it hasn't
@@ -299,6 +306,7 @@ impl<'a> Heap<'a>
    ///
    /// All allocated memory must be passed to `deallocate` with the same [`Layout`]
    /// or else terrible things will happen.
+   #[inline]
    pub unsafe fn allocate(&mut self, layout: Layout) -> AllocResult<NonNull<u8>>
    {
       let mut align: usize = layout.align();
@@ -361,7 +369,37 @@ impl<'a> Heap<'a>
       }
    }
 
+   /// Deallocate a block of memory allocated using `allocate`.
+   ///
+   /// Note that the [`Layout`] passed to this function must match that which
+   /// was passed to `allocate`.
+   ///
+   /// [`Layout`]: crate::allocations::layout::Layout
+   #[inline]
+   pub unsafe fn deallocate(&mut self, pointer: NonNull<u8>, layout: Layout)
+   {
+      let init_order: usize = self
+         .allocation_order(layout)
+         .expect("tried to dispose of invalid block");
 
+      // The fun part: when deallocating a block, we also want to check if
+      // its buddy is free on the array. If the buddy block is also free,
+      // we merge them and continue walking up the tree.
+      //
+      // `block` is the biggest merged block that we have so far.
+      let mut block = pointer;
+      for order in init_order..self.free_lists.len() {
+         if let Some(bud) = self.buddy(order, block) {
+            if self.free_list_remove(order, bud) {
+               block = cmp::min(block, bud);
+               continue;
+            }
+         }
+
+         self.free_list_insert(order, block);
+         return;
+      }
+   }
 }
 
 /// Initializes the heap.

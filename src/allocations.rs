@@ -9,6 +9,7 @@ use core::{
 
 use self::ecs::AllocResult;
 use self::layout::Layout;
+use self::heap::HEAP;
 
 extern "C"
 {
@@ -20,6 +21,81 @@ extern "C"
    static STACK_END: usize;
    static STACK_START: usize;
 }
+
+#[doc(hidden)]
+#[no_mangle]
+pub extern "C" fn __rustc_allocate(size: usize, align: usize) -> *mut u8
+{
+   let layout: Layout = Layout::from_size_align(size, align)
+      .expect("error creating memory layout");
+
+   // SAFETY: safety contract must be upheld by caller.
+   unsafe {
+      HEAP
+         .lock()
+         .as_mut()
+         .expect("must initialise heap before calling")
+         .allocate(layout)
+         .expect("allocation failed")
+         .as_ptr() as *mut u8
+   }
+}
+
+#[doc(hidden)]
+#[no_mangle]
+pub extern "C" fn __rustc_deallocate(pointer: *mut u8, old_size: usize, align: usize)
+{
+   let layout: Layout = Layout::from_size_align(old_size, align)
+      .expect("error creating memory layout");
+
+   let nonnull: NonNull<u8> = NonNull::new(pointer)
+      .expect("pointer is null");
+
+   // SAFETY: safety contract must be upheld by caller.
+   unsafe {
+      HEAP
+         .lock()
+         .as_mut()
+         .expect("must initialise heap before calling")
+         .deallocate(nonnull, layout)
+   }
+}
+
+#[doc(hidden)]
+#[no_mangle]
+pub extern "C" fn __rustc_reallocate(
+   pointer: *mut u8,
+   old_size: usize,
+   align: usize,
+   new_size: usize,
+) -> *mut u8
+{
+   let new_pointer: *mut u8 = __rustc_allocate(new_size, align);
+   if new_pointer.is_null() {
+      return new_pointer;
+   } else {
+      unsafe {
+         ptr::copy(pointer, new_pointer, cmp::min(new_size, old_size));
+      }
+
+      __rustc_deallocate(pointer, old_size, align);
+      return new_pointer;
+   }
+}
+
+#[doc(hidden)]
+#[no_mangle]
+pub extern "C" fn __rustc_reallocate_inplace(
+   _pointer: *mut u8,
+   old_size: usize,
+   _new_size: usize,
+   _align: usize,
+) -> usize{ return old_size; }
+
+#[doc(hidden)]
+#[no_mangle]
+pub extern "C" fn __rustc_usable_size(size: usize, _align: usize) -> usize{ return size; }
+
 
 #[cfg(feature="allocator")]
 pub unsafe trait Allocator
