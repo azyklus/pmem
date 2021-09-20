@@ -1,6 +1,8 @@
 use core::{
    cmp,
+   mem,
    ptr::{self, NonNull},
+   slice,
 };
 
 use crate::{
@@ -99,15 +101,15 @@ impl<'a> Heap<'a>
 {
    pub unsafe fn new(heap_base:  NonNull<u8>,
                      heap_size:  usize,
-                     free_lists: &mut [*mut FreeBlock],
+                     free_lists: &'static mut [*mut FreeBlock],
    ) -> Heap
    {
-      assert!(heap_base > 0);
+      assert!((heap_base.as_ptr() as usize) > 0);
       assert!(free_lists.len() > 0);
 
       let min_block_size: usize = heap_size >> (free_lists.len() - 1);
 
-      assert_eq!(heap_base as usize & (MIN_HEAP_ALIGN -1), 0);
+      assert_eq!(heap_base.as_ptr() as usize & (MIN_HEAP_ALIGN -1), 0);
 
       // The heap must be large enough to contain at least one block.
       assert!(heap_size >= min_block_size);
@@ -125,7 +127,7 @@ impl<'a> Heap<'a>
 
       // Zero out our free array pointers.
       for pointer in free_lists.iter_mut() {
-         pointer = None;
+         *pointer = ptr::null_mut();
       }
 
       // Store all of our heap info in an instance of the struct.
@@ -140,7 +142,7 @@ impl<'a> Heap<'a>
       // Insert the entire heap into the appropriate free array
       // as a single block.
       let order = result
-         .allocation_order(heap_size, 1)
+         .allocation_order(Layout::from_size_align(heap_size, 1).unwrap())
          .expect("failed to calculate order for root heap block");
 
       result.free_list_insert(order, heap_base);
@@ -223,7 +225,7 @@ impl<'a> Heap<'a>
    /// Insert `block` of `order` into the appropriate free array.
    unsafe fn free_list_insert(&mut self, order: usize, block: NonNull<u8>)
    {
-      let free_block: *mut FreeBlock = block as *mut FreeBlock;
+      let free_block: *mut FreeBlock = (block.as_ptr()) as *mut FreeBlock;
       *free_block = FreeBlock::new(self.free_lists[order]);
       self.free_lists[order] = free_block;
    }
@@ -241,7 +243,7 @@ impl<'a> Heap<'a>
    /// finding.
    unsafe fn free_list_remove(&mut self, order: usize, block: NonNull<u8>) -> bool
    {
-      let block_pointer: *mut FreeBlock = block as *mut FreeBlock;
+      let block_pointer: *mut FreeBlock = block.as_ptr() as *mut FreeBlock;
 
       // Yuck, array traversals are gross without recursion.
       //
@@ -283,7 +285,7 @@ impl<'a> Heap<'a>
          order -= 1;
 
          // Insert the "upper half" of the block into the free array.
-         let split: usize = block.offset(size_to_split as isize);
+         let split: NonNull<u8> = NonNull::new((block.as_ptr() as *mut u8).offset(size_to_split as isize)).unwrap();
          self.free_list_insert(order, split);
       }
    }
@@ -297,13 +299,13 @@ impl<'a> Heap<'a>
    ///
    /// All allocated memory must be passed to `deallocate` with the same [`Layout`]
    /// or else terrible things will happen.
-   pub unsafe fn allocate(&mut self, layout: Layout) -> AllocResult<NonNull<[u8]>>
+   pub unsafe fn allocate(&mut self, layout: Layout) -> AllocResult<NonNull<u8>>
    {
       let mut align: usize = layout.align();
       let mut size: usize = layout.size();
 
       // Figure out which order block we will need.
-      if let Some(order_needed) = self.allocation_order(size, align) {
+      if let Some(order_needed) = self.allocation_order(layout) {
          // Start with the smallest acceptable block size and search upward
          // until we reach blocks the size of the entire heap.
          for order in order_needed..self.free_lists.len() {
@@ -313,10 +315,16 @@ impl<'a> Heap<'a>
                // This leaves the address unchanged because we always
                // allocate at the head of a block.
                if order > order_needed {
-                  self.split_free_block(block, order, order_needed);
+                  self.split_free_block(
+                     NonNull::new(
+                        block as *mut u8
+                     ).unwrap(),
+                     order,
+                     order_needed
+                  );
                }
 
-               let nonnull: NonNull<[u8]> = NonNull::new(block).unwrap();
+               let nonnull: NonNull<u8> = NonNull::new(block as *mut u8).unwrap();
 
                // We have an allocation
                return Ok(nonnull);
@@ -337,7 +345,7 @@ impl<'a> Heap<'a>
    /// from and also the block that we could potentially merge with.
    pub unsafe fn buddy(&self, order: usize, block: NonNull<u8>) -> Option<NonNull<u8>>
    {
-      let relative: usize = (block as usize) - (self.heap_base as usize);
+      let relative: usize = (block.as_ptr() as usize) - (self.heap_base.as_ptr() as usize);
       let size: usize = self.order_size(order);
 
       if size >= self.heap_size {
@@ -345,7 +353,11 @@ impl<'a> Heap<'a>
       } else {
          // Fun fact: we can find our buddy by xoring the right bit in our
          // offset from the base of the heap.
-         return Some(self.heap_base.offset((relative ^ size) as isize));
+         return Some(
+            NonNull::new(
+               (self.heap_base.as_ptr() as *mut u8).offset((relative ^ size) as isize)
+            ).unwrap()
+         );
       }
    }
 
@@ -355,7 +367,7 @@ impl<'a> Heap<'a>
 /// Initializes the heap.
 pub unsafe fn init(heap_base: NonNull<u8>,
                    heap_size: usize,
-                   free_lists: &'static mut [Option<FreeBlock>])
+                   free_lists: &'static mut [*mut FreeBlock])
 {
    let mut heap = HEAP.lock();
    *heap = Some(Heap::new(heap_base, heap_size, free_lists));

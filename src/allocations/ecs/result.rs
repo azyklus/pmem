@@ -4,6 +4,7 @@ use core::{
 };
 
 /// Result type alias for allocation errors.
+#[cfg(feature="allocator")]
 pub type AllocResult<T> = result::Result<T, AllocError>;
 
 /// # Allocation error
