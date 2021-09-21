@@ -36,6 +36,9 @@ pub extern crate spin;
 /// # Memory allocation facilities
 pub mod allocations;
 
+/// # Bit-flags and other useful things
+pub mod bits;
+
 /// # Synchronization primitives
 #[cfg(feature="sync")]
 pub mod sync;
