@@ -1,0 +1,8 @@
+[package]
+name = "vec_test"
+version = "0.1.0"
+edition = "2018"
+authors = ["Yarot Kell <yarotkel@gmail.com>"]
+
+[dependencies]
+pmem = {path="..",version="0.1.0"}
