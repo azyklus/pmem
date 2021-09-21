@@ -1,8 +1,10 @@
 extern crate pmem;
 
-pub fn main() -> Result<i32>
+use std::io;
+
+pub fn main() -> io::Result<()>
 {
    println!("Hello world!");
 
-   return Ok(0);
+   return Ok(());
 }
