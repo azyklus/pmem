@@ -2,10 +2,14 @@ use super::{
    layout::{size_align, Layout},
    paging,
    ptr::NonNull,
-   AllocResult, Allocator,
+   AllocResult, AllocError,
+   Allocator,
 };
 
-use core::intrinsics;
+use core::{
+   intrinsics,
+   ptr,
+};
 
 /// Allocate memory with the global allocator.
 ///
@@ -52,7 +56,7 @@ pub unsafe fn reallocate(pointer: *mut u8, layout: Layout, new_size: usize) -> *
 #[inline]
 pub unsafe fn allocate_zeroed(layout: Layout) -> *mut u8
 {
-   let pointer: NonNull<u8> = NonNull::new(self::alloc(layout)).expect("value is null");
+   let pointer: NonNull<u8> = NonNull::new(self::allocate(layout)).expect("value is null");
    unsafe {
       let unchecked: NonNull<[u8]> = NonNull::slice_from_raw_parts(pointer, layout.size());
       unchecked
@@ -132,7 +136,7 @@ impl Global
          // `new_ptr`. Thus, the call to `copy_nonoverlapping` is safe. The safety contract
          // for `dealloc` must be upheld by the caller.
          old_size => unsafe {
-            let new: NonNull<[u8]> = self.alloc_impl(new_layout, zeroed);
+            let new: NonNull<[u8]> = self.alloc_impl(new_layout, zeroed)?;
             ptr::copy_nonoverlapping(pointer.as_ptr(), new.as_mut_ptr(), old_size);
             self.deallocate(pointer, old_layout);
 

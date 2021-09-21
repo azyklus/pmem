@@ -1,4 +1,5 @@
 use core::{
+   cmp,
    fmt,
    ptr::{
       self,
@@ -7,7 +8,11 @@ use core::{
    result,
 };
 
-use self::ecs::AllocResult;
+pub use self::ecs::{
+   AllocError,
+   AllocResult
+};
+
 use self::layout::Layout;
 use self::heap::HEAP;
 
