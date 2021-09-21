@@ -6,9 +6,27 @@ This library provides memory management facilities for P-systems.
 
 ---
 
+
 ### How to build
-Building the library is relatively straightforward, requiring only a `cargo build` command to be
-issued with Cargo's `build_script_build` doing the heavy lifting.
+
+In order to build a standalone binary for PMEM, use the build script provided in the 'bin'
+folder: `bin/psys.sh`. This script allows you to select one of three build targets (x86, RISC-V, and ARM),
+and in addition to building the project, you can also run tests and benchmarks with it.
+
+Some arguments can be passed to the build script as well:
+* -h > Displays a help message.
+* -b > Build the project. Takes an optional string argument to specify build target.
+* -t > Runs project tests and benchmarks. Takes an optional string argument to specify target.
+* -c > Runs the specified command.
+* -d > Builds HTML documentation. (Coming soon).
+
+Examples:
+* `bin/psys.sh -h`
+* `bin/psys.sh -b x86_64`
+* `bin/psys.sh -t rv64gc`
+* `bin/psys.sh -c build`
+* `bin/psys.sh -d arm`
+
 
 ### How to use
 The library can be used in any of your projects by including it in your package manifest:
