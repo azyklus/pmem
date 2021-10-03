@@ -1,0 +1,78 @@
+[tasks.fmt]
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--","--emit=files"]
+
+[tasks.clean]
+command = "cargo"
+args = ["clean"]
+
+[tasks.riscv]
+command = "cargo"
+args = [
+   "build",
+   "-Z",
+   "unstable-options",
+   "--target=config/rv64gc.json"
+]
+dependencies = ["clean"]
+
+[tasks.x86_64]
+command = "cargo"
+args = [
+   "build",
+   "-Z",
+   "unstable-options",
+   "--target=config/x86_64.json"
+]
+dependencies = ["clean"]
+
+[tasks.arm]
+command = "cargo"
+args = [
+   "build",
+   "-Z",
+   "unstable-options",
+   "--target=config/thumbv8.json",
+]
+dependencies = ["clean"]
+
+[tasks.test_riscv]
+command = "cargo"
+args = [
+   "test",
+   "-Z",
+   "unstable-options",
+   "--target=config/rv64gc.json",
+]
+dependencies = ["clean"]
+
+[tasks.x86_test]
+command = "cargo"
+args = [
+   "test",
+   "-Z",
+   "unstable-options",
+   "--target=config/x86_64.json",
+]
+dependencies = ["clean"]
+
+[tasks.arm_test]
+command = "cargo"
+args = [
+   "test",
+   "-Z",
+   "unstable-options",
+   "--target=config/thumbv8.json",
+]
+
+[tasks.flow]
+dependencies = [
+   "fmt",
+   "riscv",
+   "x86_64",
+   "arm",
+   "test_riscv",
+   "test_x86",
+   "test_arm",
+]
