@@ -1,16 +1,3 @@
-use super::{
-   layout::{size_align, Layout},
-   paging,
-   ptr::NonNull,
-   AllocResult, AllocError,
-   Allocator,
-};
-
-use core::{
-   intrinsics,
-   ptr,
-};
-
 /// Allocate memory with the global allocator.
 ///
 /// This function forwards calls to the [`Heap::allocate`] or [`paging::allocate`] method
@@ -198,3 +185,16 @@ unsafe impl Allocator for Global
       paging::deallocate(ptr.as_mut_ptr());
    }
 }
+
+use super::{
+   layout::{size_align, Layout},
+   paging,
+   ptr::NonNull,
+   AllocResult, AllocError,
+   Allocator,
+};
+
+use core::{
+   intrinsics,
+   ptr,
+};

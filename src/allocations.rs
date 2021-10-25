@@ -1,21 +1,3 @@
-use core::{
-   cmp,
-   fmt,
-   ptr::{
-      self,
-      NonNull
-   },
-   result,
-};
-
-pub use self::ecs::{
-   AllocError,
-   AllocResult
-};
-
-use self::layout::Layout;
-use self::heap::HEAP;
-
 extern "C"
 {
    static HEAP_SIZE: usize;
@@ -107,6 +89,49 @@ pub unsafe trait Allocator
 {
    fn allocate(&self, layout: Layout) -> AllocResult<NonNull<[u8]>>;
    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout);
+
+   /// Aligned allocation.
+   ///
+   /// TODO: Document this function.
+   fn allocate_aligned(&self, layout: Layout) -> AllocResult<NonNull<[u8]>>
+   {
+      let _size: usize = layout.size();
+      let _align: usize = layout.align();
+
+      let actual_size: usize = _size + _align - 1 + mem::size_of::<usize>();
+      let pointer: usize = match self.allocate(layout) {
+         Ok(p) => p.as_ptr() as usize,
+         Err(e) => return Err(e),
+      };
+
+      let aligned_ptr: usize = layout.align_up(pointer + mem::size_of::<usize>());
+      let actual_ptr_ptr: usize = aligned_ptr - mem::size_of::<usize>();
+
+      (actual_ptr_ptr as *mut usize).write_unaligned(pointer);
+
+      let pointer: NonNull<u8> = NonNull::new(aligned_ptr as *mut u8).ok_or(AllocError).unwrap();
+      let slice: NonNull<[u8]> = NonNull::slice_from_raw_parts(pointer, _size);
+
+      return Ok(slice)
+   }
+
+   /// Aligned deallocation.
+   ///
+   /// TODO: Document this function.
+   unsafe fn deallocate_aligned(&self, ptr: NonNull<u8>, layout: Layout)
+   {
+      let _size: usize = layout.size();
+      let _align: usize = layout.align();
+
+      let casted: &NonNull<usize> = &ptr.cast::<usize>();
+      let aligned_ptr: usize = *casted.as_ptr();
+
+      let actual_ptr_ptr: usize = aligned_ptr - mem::size_of::<usize>();
+      let actual_ptr = (actual_ptr_ptr as *const usize).read_unaligned();
+      let nonnull: NonNull<u8> = NonNull::new(actual_ptr as *mut u8).unwrap();
+
+      self.deallocate(nonnull, layout);
+   }
 
    /// # Zero-initialized allocation
    ///
@@ -304,6 +329,12 @@ unsafe impl<A> Allocator for Locked<A>
    }
 
    #[inline]
+   fn allocate_aligned(&self, layout: Layout) -> AllocResult<NonNull<[u8]>>
+   {
+      self.lock().allocate_aligned(layout)
+   }
+
+   #[inline]
    fn allocate_zeroed(&self, layout: Layout) -> AllocResult<NonNull<[u8]>>
    {
       self.lock().allocate_zeroed(layout)
@@ -315,6 +346,12 @@ unsafe impl<A> Allocator for Locked<A>
       // SAFETY: the safety contract must be upheld by the caller.
       unsafe { self.lock().deallocate(ptr, layout) }
    }
+
+   #[inline]
+   unsafe fn deallocate_aligned(&self, ptr: NonNull<u8>, layout: Layout)
+   {
+      unsafe { self.lock().deallocate_aligned(ptr, layout) }
+   }
 }
 
 #[cfg(feature = "allocator")]
@@ -323,17 +360,36 @@ pub fn handle_alloc_error(layout: Layout) -> !
    loop{}
 }
 
-/// # Implements an ECS-style allocator
+use core::{
+   cmp,
+   fmt,
+   mem,
+   ptr::{
+      self,
+      NonNull
+   },
+   result,
+};
+
+pub use self::ecs::{
+   AllocError,
+   AllocResult
+};
+
+use self::layout::Layout;
+use self::heap::HEAP;
+
+/// Implements an ECS-style allocator
 pub mod ecs;
 
-/// # Global memory allocator implementation
+/// Global memory allocator implementation
 pub mod global;
 
-/// # Heap allocator implementation
+/// Heap allocator implementation
 pub mod heap;
 
-/// # Defines memory layout structure
+/// Defines memory layout structure
 pub mod layout;
 
-/// # Implements a simple page allocator
+/// Implements a simple page allocator
 pub mod paging;
