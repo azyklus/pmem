@@ -1,15 +1,10 @@
 pkgs:
   pmem:
     version: 0.0.0
-    description: "Memory management for psys."
+    root: src/main.zig
+    description: Memory management for psys.
     license: BSD-3-Clause
     source_url: "https://github.com/mnimi/pmem"
-    tags:
-      ziglang
-
-    root: src/main.zig
-    files:
-      readme.md
-      license.md
+    tags: ziglang
 
 deps:

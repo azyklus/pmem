@@ -1,2 +1,7 @@
 /target
-Cargo.lock
+/Cargo.lock
+
+/zig-*/
+
+/.gyro/
+/gyro.lock
