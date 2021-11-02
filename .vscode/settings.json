@@ -1,7 +1,0 @@
-{
-   "rust.all_features": true,
-   "rust.all_targets": false,
-   "rust.target": "../x86_64-ak-none.json",
-   "rust-client.channel": "nightly",
-   "rust-client.engine": "rust-analyzer"
-}
